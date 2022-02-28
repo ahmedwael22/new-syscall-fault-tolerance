@@ -1,0 +1,22 @@
+1318,1338d1317
+< 
+< 
+< 
+< 	/* Ahmed Came Here */ 
+< 	
+< 	long pfork_status;
+< 	pid_t pfork_standby_pid;
+< 	pid_t pfork_active_pid;
+< 	
+< 	/* The above are the THREE required additional fields in Exercise 10
+< 	 * The field below is one that I decided to add myself
+< 	 * It makes the implementation of pfork_who very straightforward
+< 	 * And in other functions, we often need to identify the type of the calling process
+< 	 * This field makes this identification very easy */	
+< 	long pfork_who_var;
+< 
+< 	/* Ahmed Left Here */
+< 
+< 
+< 
+< 

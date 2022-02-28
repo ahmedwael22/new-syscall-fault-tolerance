@@ -1,0 +1,244 @@
+1933,1945d1932
+< 
+< 
+< 	
+< 	
+< 	/* Ahmed Came Here */
+< 	p->pfork_status = 0;
+< 	p->pfork_standby_pid = 0;
+< 	p->pfork_active_pid = 0;
+< 
+< 	p->pfork_who_var = 0; /* New field that I added - include/sched.h has more details */
+< 	/* Ahmed Left Here */
+< 
+< 
+2403d2389
+< 
+2421,2422c2407,2408
+< 			(args->flags & CLONE_PARENT_SETTID) &&
+< 			(args->pidfd == args->parent_tid))
+---
+> 	    (args->flags & CLONE_PARENT_SETTID) &&
+> 	    (args->pidfd == args->parent_tid))
+2480,2481d2465
+< 
+< 
+2484,2629d2467
+< 
+< /* __do_pfork does the core logic of the pfork syscall
+<  * It is based on the __do_fork function
+<  * It essentially duplicates everything for two process instead of one
+<  * Except for adding to the runqueue -- This is done for only one process
+<  * The other process is added to the runqueue in exit.c when the active process terminates
+<  * Check exit.c for more details on this */
+< 
+< long _do_pfork(struct kernel_clone_args *args) /* New function created by Ahmed */
+< {
+< 
+< 	u64 clone_flags = args->flags;
+< 	struct completion vfork;
+< 	struct pid *pid;
+< 	struct pid *qid; /* Ahmed Duplicate */
+< 	struct task_struct *p;
+< 	struct task_struct *q; /* Ahmed Duplicate */
+< 	int trace = 0;
+< 	int traceq = 0; /* Ahmed Duplicate*/
+< 	long nr;
+< 	long nrq; /* Duplicate */
+< 
+< 	/*
+< 	 * For legacy clone() calls, CLONE_PIDFD uses the parent_tid argument
+< 	 * to return the pidfd. Hence, CLONE_PIDFD and CLONE_PARENT_SETTID are
+< 	 * mutually exclusive. With clone3() CLONE_PIDFD has grown a separate
+< 	 * field in struct clone_args and it still doesn't make sense to have
+< 	 * them both point at the same memory location. Performing this check
+< 	 * here has the advantage that we don't need to have a separate helper
+< 	 * to check for legacy clone().
+< 	 */
+< 	if ((args->flags & CLONE_PIDFD) &&
+< 			(args->flags & CLONE_PARENT_SETTID) &&
+< 			(args->pidfd == args->parent_tid))
+< 		return -EINVAL;
+< 
+< 	/*
+< 	 * Determine whether and which event to report to ptracer.  When
+< 	 * called from kernel_thread or CLONE_UNTRACED is explicitly
+< 	 * requested, no event is reported; otherwise, report if the event
+< 	 * for the type of forking is enabled.
+< 	 */
+< 
+< 
+< 
+< 
+< 
+< 	/* Ahmed Modified Here */
+< 	/* All "traceq" lines are newly added by Ahmed
+< 	 * to maintain consistency between active process p and standby process q */
+< 
+< 	if (!(clone_flags & CLONE_UNTRACED)) {
+< 		if (clone_flags & CLONE_VFORK) {
+< 			trace = PTRACE_EVENT_VFORK;
+< 			traceq = PTRACE_EVENT_VFORK;
+< 		}
+< 		else if (args->exit_signal != SIGCHLD) {
+< 			trace = PTRACE_EVENT_CLONE;
+< 			traceq = PTRACE_EVENT_CLONE;
+< 		}
+< 		else {
+< 			trace = PTRACE_EVENT_FORK;
+< 			traceq = PTRACE_EVENT_FORK;
+< 		}
+< 		if (likely(!ptrace_event_enabled(current, trace))) {
+< 			trace = 0;
+< 			traceq = 0;
+< 		}
+< 	}
+< 
+< 
+< 	p = copy_process(NULL, trace, NUMA_NO_NODE, args);
+< 	q = copy_process(NULL, traceq, NUMA_NO_NODE, args); /* Ahmed Duplicate */
+< 	add_latent_entropy();
+< 
+< 
+< 	if (IS_ERR(p))
+< 		return PTR_ERR(p);
+< 
+< 	/* Ahmed Duplicate */
+< 	if (IS_ERR(q))
+< 		return PTR_ERR(q); 
+< 	
+< 	/*
+< 	 * Do this prior waking up the new thread - the thread pointer
+< 	 * might get invalid after that point, if the thread exits quickly.
+< 	 */
+< 
+< 
+< 
+< 	trace_sched_process_fork(current, p);
+< 	trace_sched_process_fork(current, q); /* Ahmed Duplicate */
+< 
+< 	pid = get_task_pid(p, PIDTYPE_PID);
+< 	nr = pid_vnr(pid);
+< 
+< 	qid = get_task_pid(q, PIDTYPE_PID); /* Ahmed Duplicate */
+< 	nrq = pid_vnr(qid); /* Ahmed Duplicate */
+< 
+< 	
+< 
+< 	if (clone_flags & CLONE_PARENT_SETTID)
+< 		put_user(nr, args->parent_tid);
+< 	
+< 	if (clone_flags & CLONE_VFORK) {
+< 		p->vfork_done = &vfork;
+< 		init_completion(&vfork);
+< 		get_task_struct(p);
+< 	}
+< 
+< 
+< 
+< 	/* Ahmed Came Here */
+< 	/* Set the new fields (they were initially set to 0 in copy_process */
+< 	p->pfork_standby_pid = 	nrq;
+< 	p->pfork_who_var = 1;
+< 
+< 	q->pfork_active_pid = nr;
+< 	q->pfork_who_var = 2;
+< 	
+< 
+< 
+< 	wake_up_new_task(p);
+< 
+< 	/* Don't do anything for q
+< 	 * It will be woken up on p's exit (as in the file exit.c) */
+< 
+< 
+< 
+< 	/* forking complete and child started to run, tell ptracer */
+< 	if (unlikely(trace))
+< 		ptrace_event_pid(trace, pid);
+< 
+< 	if (clone_flags & CLONE_VFORK) {
+< 		if (!wait_for_vfork_done(p, &vfork))
+< 			ptrace_event_pid(PTRACE_EVENT_VFORK_DONE, pid);
+< 	}
+< 
+< 	put_pid(pid);
+< 	return nr; /* We return nr instead of nrq to remain consistent with the original fork */
+< 
+< 
+< }
+< 
+< 
+< 
+2661,2731d2498
+< 
+< 
+< 
+< 
+< /* Ahmed Came Here */
+< /* NEW SYSCALLS */
+< 
+< #ifdef __ARCH_WANT_SYS_FORK
+< SYSCALL_DEFINE0(pfork)
+< {
+< #ifdef CONFIG_MMU
+< 	struct kernel_clone_args args = {
+< 		.exit_signal = SIGCHLD,
+< 	};
+< 
+< 	return _do_pfork(&args);
+< #else
+< 	/* can not support in nommu mode */
+< 	return -EINVAL;
+< #endif
+< }
+< 
+< SYSCALL_DEFINE1(set_pfork_status, long, status_provided)
+< {
+< 	/* We set the status of the calling process
+< 	 * regardless of whether it is active or standby */
+< 	current->pfork_status = status_provided;
+< 	
+< 	
+< 	/* If the calling process is the active process,
+< 	 * then we also need to set the status of the standby process
+< 	 * We use find_get_task_by_vpid to access it */
+< 	if (current->pfork_who_var == 1) /* active */
+< 	{
+< 		struct task_struct *temp;
+< 		temp = find_get_task_by_vpid (current->pfork_standby_pid);
+< 		
+< 		temp->pfork_status = status_provided;
+< 	}
+< 	
+< 	return 0L;
+< }
+< 
+< SYSCALL_DEFINE0(get_pfork_status)
+< {
+< 	return current->pfork_status;
+< }
+< 
+< SYSCALL_DEFINE0(get_pfork_sibling_pid)
+< {
+< 	if (current->pfork_who_var == 1) /* active */
+< 		return current->pfork_standby_pid;
+< 	else if (current->pfork_who_var == 2) /* standby */
+< 		return current->pfork_active_pid;
+< 	else
+< 		return -1;
+< }
+< 
+< SYSCALL_DEFINE0(pfork_who)
+< {
+< 	return current->pfork_who_var;
+< }
+< 
+< 
+< #endif
+< 
+< /* Ahmed Left Here */
+< 
+< 
+< 
+< 

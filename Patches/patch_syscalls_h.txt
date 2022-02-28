@@ -1,0 +1,11 @@
+1123,1132d1122
+< 
+< /* Ahmed Wael Change Starts Here */
+< asmlinkage long sys_pfork(void);
+< asmlinkage long sys_set_pfork_status(long status_provided);
+< asmlinkage long sys_get_pfork_status(void);
+< asmlinkage long sys_get_pfork_sibling_pid(void);
+< asmlinkage long sys_pfork_who(void);
+< /* Ahmed Wael Change Starts Here */
+< 
+< 

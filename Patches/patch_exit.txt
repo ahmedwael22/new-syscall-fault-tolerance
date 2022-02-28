@@ -1,0 +1,31 @@
+710,711c710
+< {	
+< 
+---
+> {
+857,859d855
+< 
+< 
+< 
+886,890d881
+< 	
+< 	
+< 	struct task_struct *sibling; /* Ahmed Came and Left Here*/
+< 
+< 
+892,906d882
+< 
+< 
+< 	/* Ahmed Came Here */
+< 	
+< 	/* Check if the exiting process is called by pfork and is the active child
+< 	 * (It sufficies to check that its pfork_who_var == 1)
+< 	 * If true, then retrieve the standby process using find_get_task_by_vpid
+< 	 * And wake up this task */
+< 
+< 	if (current->pfork_who_var == 1) { /* i.e. current is pfork active child */
+< 		sibling = find_get_task_by_vpid(current->pfork_standby_pid);
+< 		wake_up_new_task(sibling);
+< 	}
+< 	/* Ahmed Left Here */
+< 	
